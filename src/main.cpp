@@ -11,6 +11,11 @@
 Si5351 si5351;
 USBSerial usb;
 unsigned long lastUpdate;
+unsigned long delayMs;
+unsigned long fromFreq;
+unsigned long toFreq;
+unsigned long stepFreq;
+unsigned long oldFreq;
 int onOff;
 char command[256];
 int pos;
@@ -19,6 +24,9 @@ const char *delimiters  = ",;";
 const char *defaultError = "available: freq, sweep";
 const char *freqError = "freq,<frequency>";
 const char *sweepError = "sweep,<from>,<to>,<step>,<delay>";
+
+
+unsigned long calculateFreq();
 
 void setup() {
     bool i2c_found;
@@ -46,21 +54,22 @@ void setup() {
     
     // Set CLK0 to output 
     si5351.set_freq(1400000000ULL, SI5351_CLK0);
+    lastUpdate = millis();
+
+    oldFreq = 1400000000ULL;
+    fromFreq = 1400000000ULL;
+    toFreq = 1400000000ULL;
+    stepFreq = 0L;
+    delayMs=500L;
     
     // Query a status update and wait a bit to let the Si5351 populate the
     // status flags correctly.
     si5351.update_status();
-    delay(500);
-    lastUpdate = millis();
     onOff=0;
     pos=0;
 }
 
 void loop() {
-    unsigned long fromFreq;
-    unsigned long toFreq;
-    unsigned long stepFreq;
-    unsigned long delayMs;
     unsigned long f;
     char *pch;
     const char *usage;
@@ -84,10 +93,13 @@ void loop() {
                     usage = freqError;
                     pch = strtok(NULL, delimiters);
                     fromFreq = atol(pch);
+                    toFreq = fromFreq;
+                    stepFreq = 0L;
+                    delayMs = 1000L;
                     if(fromFreq==0L) goto error;
                     usb.print("frequency: ");
                     usb.println(fromFreq);
-                    si5351.set_freq(fromFreq, SI5351_CLK0);                    
+                    lastUpdate = 0L; // force update
                 } else if(strcmp(pch,"sweep")==0) {
                     usage = sweepError;
                     pch = strtok(NULL, delimiters);
@@ -125,14 +137,6 @@ void loop() {
                     if(fromFreq>toFreq) {
                         goto error;
                     }
-                    
-                    for(f=fromFreq;f<=toFreq;f+=stepFreq){
-                        si5351.set_freq(f, SI5351_CLK0); 
-                        delay(delayMs);
-                        usb.print(f);
-                        usb.print(",");
-                        usb.println(analogRead(0));
-                    }
                 } else {
 error:
                     usb.println("ERROR");
@@ -146,8 +150,15 @@ error:
         }
     }
 
-    if((millis()-lastUpdate)>500L) {
+    if((millis()-lastUpdate) > delayMs) {
         lastUpdate = millis();
+
+        f = calculateFreq();
+        if(f != oldFreq) {
+            si5351.set_freq(f, SI5351_CLK0);
+            oldFreq = f;
+        }
+
         if(onOff==0) {
             digitalWrite(PC13,1);
             onOff=1;
@@ -155,10 +166,17 @@ error:
             digitalWrite(PC13,0);
             onOff=0;
         }
-        usb.print("adc: ");
+        usb.print(f);
+        usb.print(',');
         usb.println(analogRead(0));
-    
     }
+}
+
+unsigned long calculateFreq() {
+    unsigned long nf = oldFreq + stepFreq;
+    if (nf > toFreq) nf = toFreq;
+    if (nf < fromFreq) nf = fromFreq;
+    return (nf);
 }
 
 
