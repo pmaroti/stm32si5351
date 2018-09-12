@@ -8,6 +8,9 @@
 #include "si5351.h"
 
 
+#define GETLONG(_p,_d,_r,_e) _p = strtok(NULL, _d);_r = atol(_p);if(_r==0L) goto _e
+
+
 Si5351 si5351;
 USBSerial usb;
 unsigned long lastUpdate;
@@ -73,6 +76,7 @@ void loop() {
     unsigned long f;
     char *pch;
     const char *usage;
+    unsigned long rl,rl1,rl2,rl3;
 
     while (usb.available()) {
         char c = usb.read();
@@ -91,40 +95,37 @@ void loop() {
 
                 if(strcmp(pch,"freq")==0) {
                     usage = freqError;
-                    pch = strtok(NULL, delimiters);
-                    fromFreq = atol(pch);
-                    toFreq = fromFreq;
+                    GETLONG(pch,delimiters,rl,error);    //fromFreq
+
+                    fromFreq = rl;
+                    toFreq = rl;
                     stepFreq = 0L;
                     delayMs = 1000L;
-                    if(fromFreq==0L) goto error;
+                    lastUpdate = 0L; // force update
+
                     usb.print("frequency: ");
                     usb.println(fromFreq);
-                    lastUpdate = 0L; // force update
+
                 } else if(strcmp(pch,"sweep")==0) {
                     usage = sweepError;
-                    pch = strtok(NULL, delimiters);
-                    if(pch==NULL) goto error;
-                    fromFreq = atol(pch);
-                    if(fromFreq==0L) goto error;
 
-                    pch = strtok(NULL, delimiters);
-                    if(pch==NULL) goto error;
-                    toFreq = atol(pch);
-                    if(toFreq==0L) goto error;
+                    GETLONG(pch,delimiters,rl,error);    //fromFreq
+                    GETLONG(pch,delimiters,rl1,error);   //toFreq
+                    GETLONG(pch,delimiters,rl2,error);   //stepFreq
+                    GETLONG(pch,delimiters,rl3,error);   //delayMs
 
-                    pch = strtok(NULL, delimiters);
-                    if(pch==NULL) goto error;
-                    stepFreq = atol(pch);
-                    if(stepFreq==0L) goto error;
+                    if(rl>rl1) {
+                        goto error;
+                    }
 
-                    pch = strtok(NULL, delimiters);
-                    if(pch==NULL) goto error;
-                    delayMs = atol(pch);
-                    if(delayMs==0L) goto error;
+                    fromFreq = rl;
+                    toFreq = rl1;
+                    stepFreq = rl2;
+                    delayMs = rl3;
 
                     usb.print("from:");
                     usb.println(fromFreq);
-
+                    
                     usb.print("to:");
                     usb.println(toFreq);
 
@@ -134,9 +135,6 @@ void loop() {
                     usb.print("delay:");
                     usb.println(delayMs);
 
-                    if(fromFreq>toFreq) {
-                        goto error;
-                    }
                 } else {
 error:
                     usb.println("ERROR");
