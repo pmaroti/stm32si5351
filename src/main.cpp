@@ -151,6 +151,10 @@ error:
     if((millis()-lastUpdate) > delayMs) {
         lastUpdate = millis();
 
+        usb.print(oldFreq);
+        usb.print(',');
+        usb.println(analogRead(0));
+
         f = calculateFreq();
         if(f != oldFreq) {
             si5351.set_freq(f, SI5351_CLK0);
@@ -164,9 +168,6 @@ error:
             digitalWrite(PC13,0);
             onOff=0;
         }
-        usb.print(f);
-        usb.print(',');
-        usb.println(analogRead(0));
     }
 }
 
