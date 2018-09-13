@@ -8,17 +8,17 @@
 #include "si5351.h"
 
 
-#define GETLONG(_p,_d,_r,_e) _p = strtok(NULL, _d);_r = atol(_p);if(_r==0L) goto _e
+#define GETUINT64(_p,_d,_r,_e) _p = strtok(NULL, _d);_r = strtoull(_p, NULL, 10);if(_r==0L) goto _e
 
 
 Si5351 si5351;
 USBSerial usb;
-unsigned long lastUpdate;
-unsigned long delayMs;
-unsigned long fromFreq;
-unsigned long toFreq;
-unsigned long stepFreq;
-unsigned long oldFreq;
+uint64_t lastUpdate;
+uint64_t delayMs;
+uint64_t fromFreq;
+uint64_t toFreq;
+uint64_t stepFreq;
+uint64_t oldFreq;
 int onOff;
 char command[256];
 int pos;
@@ -29,7 +29,7 @@ const char *freqError = "freq,<frequency>";
 const char *sweepError = "sweep,<from>,<to>,<step>,<delay>";
 
 
-unsigned long calculateFreq();
+uint64_t calculateFreq();
 
 void setup() {
     bool i2c_found;
@@ -73,10 +73,10 @@ void setup() {
 }
 
 void loop() {
-    unsigned long f;
+    uint64_t f;
     char *pch;
     const char *usage;
-    unsigned long rl,rl1,rl2,rl3;
+    uint64_t rl,rl1,rl2,rl3;
 
     while (usb.available()) {
         char c = usb.read();
@@ -95,7 +95,7 @@ void loop() {
 
                 if(strcmp(pch,"freq")==0) {
                     usage = freqError;
-                    GETLONG(pch,delimiters,rl,error);    //fromFreq
+                    GETUINT64(pch,delimiters,rl,error);    //fromFreq
 
                     fromFreq = rl;
                     toFreq = rl;
@@ -109,10 +109,10 @@ void loop() {
                 } else if(strcmp(pch,"sweep")==0) {
                     usage = sweepError;
 
-                    GETLONG(pch,delimiters,rl,error);    //fromFreq
-                    GETLONG(pch,delimiters,rl1,error);   //toFreq
-                    GETLONG(pch,delimiters,rl2,error);   //stepFreq
-                    GETLONG(pch,delimiters,rl3,error);   //delayMs
+                    GETUINT64(pch,delimiters,rl,error);    //fromFreq
+                    GETUINT64(pch,delimiters,rl1,error);   //toFreq
+                    GETUINT64(pch,delimiters,rl2,error);   //stepFreq
+                    GETUINT64(pch,delimiters,rl3,error);   //delayMs
 
                     if(rl>rl1) {
                         goto error;
@@ -125,7 +125,7 @@ void loop() {
 
                     usb.print("from:");
                     usb.println(fromFreq);
-                    
+
                     usb.print("to:");
                     usb.println(toFreq);
 
@@ -170,104 +170,9 @@ error:
     }
 }
 
-unsigned long calculateFreq() {
-    unsigned long nf = oldFreq + stepFreq;
+uint64_t calculateFreq() {
+    uint64_t nf = oldFreq + stepFreq;
     if (nf > toFreq) nf = toFreq;
     if (nf < fromFreq) nf = fromFreq;
     return (nf);
 }
-
-
- /*
-// --------------------------------------
-// i2c_scanner
-//
-// Version 1
-//    This program (or code that looks like it)
-//    can be found in many places.
-//    For example on the Arduino.cc forum.
-//    The original author is not know.
-// Version 2, Juni 2012, Using Arduino 1.0.1
-//     Adapted to be as simple as possible by Arduino.cc user Krodal
-// Version 3, Feb 26  2013
-//    V3 by louarnold
-// Version 4, March 3, 2013, Using Arduino 1.0.3
-//    by Arduino.cc user Krodal.
-//    Changes by louarnold removed.
-//    Scanning addresses changed from 0...127 to 1...119,
-//    according to the i2c scanner by Nick Gammon
-//    http://www.gammon.com.au/forum/?id=10896
-// Version 5, March 28, 2013
-//    As version 4, but address scans now to 127.
-//    A sensor seems to use address 120.
-// 
-//
-// This sketch tests the standard 7-bit addresses
-// Devices with higher bit address might not be seen properly.
-//
-
-#include <Wire.h>
-
-USBSerial usb;
-
-
-void setup()
-{
-  int i;
-  Wire.begin(1);
-
-  usb.begin(9600);
-
-  for(i=0;i<35;i++) {
-    usb.println("Initialization");
-    delay(1000);
-  }
-  usb.println("\nI2C Scanner");
-}
-
-
-void loop()
-{
-  byte error, address;
-  int nDevices;
-
-  usb.println("Scanning...");
-
-  nDevices = 0;
-  for(address = 1; address < 127; address++ ) 
-  {
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    usb.print("Testing address ");
-    usb.println(address);
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-
-    if (error == 0)
-    {
-      usb.print("I2C device found at address 0x");
-      if (address<16) 
-        usb.print("0");
-      usb.print(address,HEX);
-      usb.println("  !");
-
-      nDevices++;
-    }
-    else if (error==4) 
-    {
-      usb.print("Unknow error at address 0x");
-      if (address<16) 
-        usb.print("0");
-      usb.println(address,HEX);
-    }    
-  }
-  if (nDevices == 0)
-    usb.println("No I2C devices found\n");
-  else
-    usb.println("done\n");
-
-  delay(5000);           // wait 5 seconds for next scan
-}
-
-*/
